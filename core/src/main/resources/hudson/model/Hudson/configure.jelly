@@ -121,6 +121,10 @@ THE SOFTWARE.
           <label for="sat.disabled">${%Disable}</label>
         </f:entry>
 
+        <f:optionalBlock name="enableSlaveAgentSSL" checked="${it.enableSlaveAgentSSL}"
+                         title="${%Use SSL for JNLP slave agent connections}"
+                         help="/help/system-config/master-slave/slave-agent-ssl.html" />
+
         <f:dropdownDescriptorSelector title="${%Markup Formatter}" field="markupFormatter" />
 
         <f:entry title="${%Access Control}">

@@ -36,6 +36,8 @@ import java.util.ArrayList;
 import java.net.URL;
 import java.io.IOException;
 
+import javax.net.ssl.SSLContext;
+
 import hudson.remoting.Engine;
 import hudson.remoting.EngineListener;
 
@@ -72,6 +74,11 @@ public class Main {
             usage="If the connection ends, don't retry and just exit.")
     public boolean noReconnect = false;
 
+    @Option(name="-enableSSL",usage="Use SSL connection to master")
+    public boolean enableSSL = false;
+
+    public static SSLContext context;
+
     /**
      * 4 mandatory parameters.
      * Host name (deprecated), Hudson URL, secret key, and slave name.
@@ -107,7 +114,7 @@ public class Main {
         Main m = new Main();
         CmdLineParser p = new CmdLineParser(m);
         p.parseArgument(args);
-        if(m.args.size()!=2)
+        if(m.args.size()!=2 && m.args.size()!=3)
             throw new CmdLineException("two arguments required, but got "+m.args);
         if(m.urls.isEmpty())
             throw new CmdLineException("At least one -url option is required.");
@@ -123,6 +130,9 @@ public class Main {
             engine.setTunnel(tunnel);
         if(credentials!=null)
             engine.setCredentials(credentials);
+        if(context!=null)
+            engine.setSSLContext(context);
+        engine.setEnableSSL(enableSSL);
         engine.setNoReconnect(noReconnect);
         engine.start();
         engine.join();

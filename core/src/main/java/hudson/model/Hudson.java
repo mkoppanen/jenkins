@@ -477,6 +477,11 @@ public final class Hudson extends Node implements ItemGroup<TopLevelItem>, Stapl
     private int slaveAgentPort =0;
 
     /**
+     * Enable SSL for slave agent connections
+     */
+    private boolean enableSlaveAgentSSL =false;
+
+    /**
      * Whitespace-separated labels assigned to the master as a {@link Node}.
      */
     private String label="";
@@ -674,7 +679,7 @@ public final class Hudson extends Node implements ItemGroup<TopLevelItem>, Stapl
 
             if(slaveAgentPort!=-1) {
                 try {
-                    tcpSlaveAgentListener = new TcpSlaveAgentListener(slaveAgentPort);
+                    tcpSlaveAgentListener = new TcpSlaveAgentListener(slaveAgentPort, enableSlaveAgentSSL);
                 } catch (BindException e) {
                     new AdministrativeError(getClass().getName()+".tcpBind",
                             "Failed to listen to incoming slave connection",
@@ -1874,6 +1879,14 @@ public final class Hudson extends Node implements ItemGroup<TopLevelItem>, Stapl
     }
 
     /**
+     * If true, enable SSL for slave agent connections
+     */
+    @Exported
+    public boolean isEnableSlaveAgentSSL() {
+        return enableSlaveAgentSSL;
+    }
+
+    /**
      * Returns the constant that captures the three basic security modes
      * in Hudson.
      */
@@ -2473,16 +2486,23 @@ public final class Hudson extends Node implements ItemGroup<TopLevelItem>, Stapl
                     }
                 }
 
+                if (isUseSecurity() && req.getParameter("enableSlaveAgentSSL")!=null) {
+                    enableSlaveAgentSSL = true;
+                } else {
+                    enableSlaveAgentSSL = false;
+                }
+
                 // relaunch the agent
                 if(tcpSlaveAgentListener==null) {
                     if(slaveAgentPort!=-1)
-                        tcpSlaveAgentListener = new TcpSlaveAgentListener(slaveAgentPort);
+                        tcpSlaveAgentListener = new TcpSlaveAgentListener(slaveAgentPort, enableSlaveAgentSSL);
                 } else {
-                    if(tcpSlaveAgentListener.configuredPort!=slaveAgentPort) {
+                    if(tcpSlaveAgentListener.configuredPort!=slaveAgentPort ||
+                       tcpSlaveAgentListener.enableSSL!=enableSlaveAgentSSL) {
                         tcpSlaveAgentListener.shutdown();
                         tcpSlaveAgentListener = null;
                         if(slaveAgentPort!=-1)
-                            tcpSlaveAgentListener = new TcpSlaveAgentListener(slaveAgentPort);
+                            tcpSlaveAgentListener = new TcpSlaveAgentListener(slaveAgentPort, enableSlaveAgentSSL);
                     }
                 }
             }

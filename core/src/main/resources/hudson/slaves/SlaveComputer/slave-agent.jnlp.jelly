@@ -84,6 +84,10 @@ THE SOFTWARE.
           <argument>-url</argument>
           <argument>${app.rootUrlFromRequest}</argument>
         </j:if>
+        <j:if test="${app.enableSlaveAgentSSL != false}">
+          <argument>-enableSSL</argument>
+          <argument>true</argument>
+        </j:if>
       </application-desc>
     </jnlp>
   </l:isAdminOrTest>

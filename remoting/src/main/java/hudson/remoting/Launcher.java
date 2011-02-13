@@ -146,7 +146,7 @@ public class Launcher {
      */
     @Option(name="-noCertificateCheck")
     public void setNoCertificateCheck(boolean _) throws NoSuchAlgorithmException, KeyManagementException {
-        System.out.println("Skipping HTTPS certificate checks altoghether. Note that this is not secure at all.");
+        System.out.println("Skipping certificate checks altoghether. Note that this is not secure at all.");
         SSLContext context = SSLContext.getInstance("TLS");
         context.init(null, new TrustManager[]{new NoCheckTrustManager()}, new java.security.SecureRandom());
         HttpsURLConnection.setDefaultSSLSocketFactory(context.getSocketFactory());
@@ -156,6 +156,7 @@ public class Launcher {
                 return true;
             }
         });
+        hudson.remoting.jnlp.Main.context = context;
     }
 
     public static void main(String... args) throws Exception {
@@ -422,7 +423,7 @@ public class Launcher {
     /**
      * {@link X509TrustManager} that performs no check at all.
      */
-    private static class NoCheckTrustManager implements X509TrustManager {
+    protected static class NoCheckTrustManager implements X509TrustManager {
         public void checkClientTrusted(X509Certificate[] x509Certificates, String s) throws CertificateException {
         }
 

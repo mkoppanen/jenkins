@@ -56,6 +56,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.net.ServerSocketFactory;
+import javax.net.ssl.SSLServerSocketFactory;
+
 /**
  * Listens to incoming TCP connections from JNLP slave agents and CLI.
  *
@@ -90,20 +93,40 @@ public final class TcpSlaveAgentListener extends Thread {
 
     public final int configuredPort;
 
+    public final boolean enableSSL;
+
     /**
      * @param port
      *      Use 0 to choose a random port.
      */
     public TcpSlaveAgentListener(int port) throws IOException {
+        this(port, false);
+    }
+
+    /**
+     * @param port
+     * @param enableSSL
+     *      Use 0 to choose a random port.
+     */
+    public TcpSlaveAgentListener(int port, boolean enableSSL) throws IOException {
         super("TCP slave agent listener port="+port);
         try {
-            serverSocket = new ServerSocket(port);
+            if (enableSSL) {
+                ServerSocketFactory ssocketFactory = SSLServerSocketFactory.getDefault();
+                serverSocket = ssocketFactory.createServerSocket(port);
+            } else {
+                serverSocket = new ServerSocket(port);
+            }
         } catch (BindException e) {
             throw (BindException)new BindException("Failed to listen on port "+port+" because it's already in use.").initCause(e);
         }
         this.configuredPort = port;
+        this.enableSSL = enableSSL;
 
-        LOGGER.info("JNLP slave agent listener started on TCP port "+getPort());
+        if(enableSSL)
+            LOGGER.info("JNLP SSL slave agent listener started on TCP port "+getPort());
+        else
+            LOGGER.info("JNLP slave agent listener started on TCP port "+getPort());
 
         start();
     }

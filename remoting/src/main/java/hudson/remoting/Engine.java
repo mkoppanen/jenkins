@@ -23,6 +23,8 @@
  */
 package hudson.remoting;
 
+import hudson.remoting.Launcher.NoCheckTrustManager;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
@@ -32,6 +34,9 @@ import java.io.ByteArrayOutputStream;
 import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
+import java.security.GeneralSecurityException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,6 +44,12 @@ import java.util.concurrent.ThreadFactory;
 import java.util.List;
 import java.util.Collections;
 import java.util.logging.Logger;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+
 import static java.util.logging.Level.SEVERE;
 
 /**
@@ -90,6 +101,10 @@ public class Engine extends Thread {
      */
     private String tunnel;
 
+    private boolean enableSSL=false;
+
+    private SSLContext context;
+
     private boolean noReconnect;
 
     /**
@@ -114,6 +129,14 @@ public class Engine extends Thread {
 
     public void setTunnel(String tunnel) {
         this.tunnel = tunnel;
+    }
+
+    public void setEnableSSL(boolean enableSSL) {
+        this.enableSSL = enableSSL;
+    }
+
+    public void setSSLContext(SSLContext context) {
+        this.context = context;
     }
 
     public void setCredentials(String creds) {
@@ -315,9 +338,23 @@ public class Engine extends Thread {
         int retry = 1;
         while(true) {
             try {
-                Socket s = new Socket(host, Integer.parseInt(port));
-                s.setTcpNoDelay(true); // we'll do buffering by ourselves
+                Socket s;
 
+                if(this.enableSSL) {
+                    // secure
+                    LOGGER.info("Creating secure socket");
+                    SSLSocketFactory sslsocketfactory;
+                    if(this.context!=null)
+                        sslsocketfactory = context.getSocketFactory();
+                    else
+                        sslsocketfactory = ((SSLSocketFactory) SSLSocketFactory.getDefault());
+                    s = sslsocketfactory.createSocket(host, Integer.parseInt(port));
+                    ((SSLSocket) s).startHandshake();
+                }else{
+                    s = new Socket(host, Integer.parseInt(port));
+                }
+
+                s.setTcpNoDelay(true); // we'll do buffering by ourselves
                 // set read time out to avoid infinite hang. the time out should be long enough so as not
                 // to interfere with normal operation. the main purpose of this is that when the other peer dies
                 // abruptly, we shouldn't hang forever, and at some point we should notice that the connection
@@ -325,6 +362,11 @@ public class Engine extends Thread {
                 s.setSoTimeout(30*60*1000); // 30 mins. See PingThread for the ping interval
                 return s;
             } catch (IOException e) {
+                if(e.getMessage().contains("PKIX path building failed")) {
+                    IOException x = new IOException("Failed to validate a server certificate. If you are using a self-signed certificate, you can use the -noCertificateCheck option to bypass this check.");
+                    x.initCause(e);
+                    throw x;
+                }
                 if(retry++>10)
                     throw (IOException)new IOException("Failed to connect to "+host+':'+port).initCause(e);
                 Thread.sleep(1000*10);
